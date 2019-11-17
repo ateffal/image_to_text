@@ -62,50 +62,69 @@ def detect_characters(img, line_indices, sep_h):
         for j in range(w):
             found = False
             for k in range(i-sep_h, i):
-                #print("i = ", i, "  j = ", j, " k = ", k)
+                # print("i = ", i, "  j = ", j, " k = ", k)
                 if img[k, j] == 0:
                     line_drown = False
                     found = True
                     break
             if found == False:
-                #print("ici j = ", j, " et i = ", i)
+                # print("ici j = ", j, " et i = ", i)
                 if line_drown == False:
                     img[(i-sep_h):i, j] = 0
                     line_drown = True
                     # save image
                     if j > (last_col+1):
-                        io.imsave("car_" + str(i) + "_" + str(j) + ".jpg", 
+                        io.imsave("car_" + str(i) + "_" + str(j) + ".jpg",
                                   img[(i-sep_h):i, (last_col+1):j])
                         last_col = j
 
     return img
 
 
-def digitalize_images(folder, label):
+def digitalize_images(folder, label, max_nb_images=0):
     image_files = [f for f in listdir(folder) if isfile(join(folder, f))]
     images = []
-    
+    n_files = 0
+
     for f in image_files:
+        if (max_nb_images != 0) and (n_files > max_nb_images):
+            break
+
         image = io.imread(folder + "/" + f)
-        image = resize(image, (64,64), preserve_range=True)
+        image = resize(image, (64, 64), preserve_range=True)
         thresh = threshold_otsu(image)
         image = image > thresh
 
         shape = image.shape
 
         if len(shape) == 3:
-            image = image[:,:,0].reshape((shape[0]*shape[1],))
+            image = image[:, :, 0].reshape((shape[0]*shape[1],))
 
         if len(shape) == 2:
             image = image.reshape((shape[0]*shape[1],))
+        n_files += 1
 
-        images.append(image)
-        
+        images.append(list(image) + [label])
+
     return images
 
 
-# x = digitalize_images("Sample001")
-# np.savetxt('array.csv', x, delimiter=';', fmt='%d')
+def digitalize_folder(folder, prefix_sub_folder):
+    """Transforms images to csv file
+    """
+    path = folder + "/" + prefix_sub_folder
 
+    # sample of zero's
+    x = digitalize_images(path + "0" + str(1), 0)
 
-# io.imshow(x[100].reshape((64,64)))
+    for i in range(2, 10):
+        temp = digitalize_images(
+            path + "0" + str(i), i)
+        x = x + temp
+
+    for i in range(10, 63):
+        temp = digitalize_images(
+            path + str(i), i)
+        x = x + temp
+
+    np.savetxt('train.csv', x, delimiter=';', fmt='%d')
